@@ -52,7 +52,6 @@ def record_audio():
             transcript = openai.Audio.transcribe("whisper-1", audio_file)
         print(transcript['text'])
 
-        return jsonify({"transcript": transcript})
 
     except Exception as e:
         print("Error:", e)

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha384-…" crossorigin="anonymous">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='audio-style.css') }}">
+    <title>Audio Recorder</title>
+</head>
+<body>
+    <div class="container">
+        <button id="recordButton"><i class="fas fa-microphone" id="microphoneIcon"></i></button>
+        <audio id="audioPlayer" controls></audio>
+        <p id="myInput"></p>
+    </div>
+
+    <script>
+        const recordButton = document.getElementById('recordButton');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const microphoneIcon = document.getElementById('microphoneIcon');
+
+        let mediaRecorder;
+        let audioChunks = [];
+
+        recordButton.addEventListener('click', () => {
+
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                    mediaRecorder.stop();
+                    microphoneIcon.classList.remove('recording');
+                } else {
+                    startRecording();
+                    microphoneIcon.classList.add('recording');
+                }
+        });
+
+        function startRecording() {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    mediaRecorder = new MediaRecorder(stream);
+
+                    mediaRecorder.ondataavailable = event => {
+                        if (event.data.size > 0) {
+                            audioChunks.push(event.data);
+                        }
+                    };
+
+                    mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        audioPlayer.src = URL.createObjectURL(audioBlob);
+                        audioChunks = [];
+
+                        console.log(audioBlob)
+                        sendAudioToBackend(audioBlob);
+                    };
+
+                mediaRecorder.start();
+                })
+                .catch(error => {
+                    console.error('Error accessing microphone:', error);
+                });
+        }
+
+        function sendAudioToBackend(audiodata) {
+            const audioBlob = new Blob([audiodata], { type: 'audio/wav' });
+
+    const formData = new FormData();
+    formData.append('file', audioBlob, 'audio.wav');
+
+    fetch('http://127.0.0.1:5000/record_audio', {
+        method: 'POST',
+        body: formData,
+    })
+    .then(response => response.json())
+    .then(response => {
+        console.log(response);
+        const transcriptText = response.transcript.text;
+
+            // Set the value of the input element
+            document.getElementById('myInput').textContent = transcriptText;
+    })
+    .catch(error => {
+        console.error('Error sending audio data to the backend:', error);
+    });
+
+        }
+    </script>
+</body>
+</html>
